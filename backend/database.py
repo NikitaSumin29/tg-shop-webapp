@@ -12,3 +12,8 @@ AsyncSessionLocal = async_sessionmaker(engine, expire_on_commit=False)
 # Базовый класс для всех наших таблиц
 class Base(DeclarativeBase):
     pass
+
+
+async def get_db():
+    async with AsyncSessionLocal() as session:
+        yield session

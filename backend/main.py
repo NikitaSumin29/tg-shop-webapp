@@ -1,16 +1,18 @@
 from contextlib import asynccontextmanager
+from typing import List
 
-import models  # Обязательно импортируем, чтобы SQLAlchemy увидела таблицы  # noqa: F401
-from database import Base, engine
-from fastapi import FastAPI
+import models
+import schemas
+from database import Base, engine, get_db
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 
-# Этот код срабатывает один раз при запуске сервера
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     async with engine.begin() as conn:
-        # Создаем таблицы в PostgreSQL
         await conn.run_sync(Base.metadata.create_all)
     yield
 
@@ -26,6 +28,26 @@ app.add_middleware(
 )
 
 
-@app.get("/")
-async def root():
-    return {"status": "ok", "message": "Бэкенд работает, Postgres подключен!"}
+# 1. МЕТОД ДЛЯ ПОЛУЧЕНИЯ ВСЕХ ТОВАРОВ
+@app.get("/api/products", response_model=List[schemas.ProductResponse])
+async def get_products(db: AsyncSession = Depends(get_db)):
+    # Делаем SQL запрос: SELECT * FROM products WHERE is_active = True
+    result = await db.execute(
+        select(models.Product).where(models.Product.is_active == True)
+    )
+    products = result.scalars().all()
+    return products
+
+
+# 2. МЕТОД ДЛЯ ДОБАВЛЕНИЯ ТОВАРА (пока без админки, чисто для тестов)
+@app.post("/api/products", response_model=schemas.ProductResponse)
+async def create_product(
+    product: schemas.ProductCreate, db: AsyncSession = Depends(get_db)
+):
+    # Создаем объект модели SQLAlchemy
+    db_product = models.Product(**product.model_dump())
+    # Добавляем в базу
+    db.add(db_product)
+    await db.commit()
+    await db.refresh(db_product)
+    return db_product
