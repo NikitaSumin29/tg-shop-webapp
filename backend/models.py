@@ -39,7 +39,9 @@ class Order(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"))  # Ссылка на покупателя
     status = Column(String, default="new")  # Статус (new, shipped, delivered)
-    created_at = Column(DateTime, default=lambda: datetime.datetime.now(datetime.UTC))
+    created_at = Column(
+        DateTime(timezone=True), default=lambda: datetime.datetime.now(datetime.UTC)
+    )
 
     # Связь с таблицей товаров в заказе
     items = relationship("OrderItem", back_populates="order")

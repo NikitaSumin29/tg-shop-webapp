@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import Orders from "./components/Orders";
 import ProductDetail from "./components/ProductDetail";
 import Cart from "./components/Cart";
 import ProductImage from "./components/ProductImage";
@@ -11,8 +12,28 @@ function App() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [cart, setCart] = useState([]);
+  const [activeOrdersCount, setActiveOrdersCount] = useState(0);
   const [currentScreen, setCurrentScreen] = useState("catalog");
   const [selectedProduct, setSelectedProduct] = useState(null);
+  const [toast, setToast] = useState(null); // НОВОЕ СОСТОЯНИЕ ДЛЯ ОКНА
+
+  // Функция для показа уведомления на 3 секунды
+  const showToast = (title, message) => {
+    setToast({ title, message });
+    setTimeout(() => setToast(null), 3000);
+  };
+
+  const fetchOrdersCount = () => {
+    const user = tg.initDataUnsafe?.user || { id: 111111 };
+    fetch(`http://127.0.0.1:8000/api/orders/${user.id}`, { cache: "no-store" })
+      .then((res) => res.json())
+      .then((data) => {
+        // Считаем только те заказы, которые не отменены
+        const active = data.filter((o) => o.status === "new").length;
+        setActiveOrdersCount(active);
+      })
+      .catch((err) => console.error(err));
+  };
 
   useEffect(() => {
     tg.ready();
@@ -22,7 +43,11 @@ function App() {
         setProducts(data);
         setLoading(false);
       })
-      .catch((err) => console.error("Ошибка сети:", err));
+      .catch((err) => {
+        console.error("Ошибка сети:", err);
+        setLoading(false);
+      });
+    fetchOrdersCount(); // Запрашиваем количество при входе
   }, []);
 
   useEffect(() => {
@@ -42,6 +67,7 @@ function App() {
   const goBack = () => {
     setCurrentScreen("catalog");
     setSelectedProduct(null);
+    fetchOrdersCount();
   };
 
   const addToCart = (product) => {
@@ -49,11 +75,38 @@ function App() {
     if (currentScreen === "product") goBack();
   };
 
-  const handleCheckout = () => {
-    const total = cart.reduce((s, i) => s + i.price, 0);
-    alert(`Заказ на сумму ${formatPrice(total)} отправлен на сервер!`);
-    setCart([]);
-    goBack();
+  const handleCheckout = async () => {
+    const items = cart.map((item) => ({ product_id: item.id, quantity: 1 }));
+    const user = tg.initDataUnsafe?.user || {
+      id: 111111,
+      first_name: "Тестовый Покупатель",
+      username: "test_buyer",
+    };
+    const orderData = {
+      tg_id: user.id,
+      first_name: user.first_name,
+      username: user.username,
+      items: items,
+    };
+
+    try {
+      const response = await fetch("http://127.0.0.1:8000/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(orderData),
+      });
+
+      if (response.ok) {
+        showToast("Успешно!", "Новый заказ добавлен."); // Наше белое окно
+        setCart([]); // Очищаем корзину
+        fetchOrdersCount();
+        goBack(); // Возвращаемся в каталог
+      } else {
+        showToast("Ошибка", "Попробуйте позже.");
+      }
+    } catch (error) {
+      showToast("Ошибка", "Нет связи с сервером.");
+    }
   };
 
   // Вычисляем сумму корзины один раз
@@ -77,6 +130,12 @@ function App() {
                 <span className="cart-total">({formatPrice(cartTotal)})</span>
               )}
             </div>
+            <button
+              className="orders-link-btn"
+              onClick={() => setCurrentScreen("orders")}
+            >
+              📦 Мои заказы {activeOrdersCount > 0 ? activeOrdersCount : ""}
+            </button>
           </header>
 
           <main className="main-content">
@@ -121,7 +180,6 @@ function App() {
           </main>
         </>
       )}
-
       {currentScreen === "product" && selectedProduct && (
         <ProductDetail
           product={selectedProduct}
@@ -129,9 +187,15 @@ function App() {
           onAddToCart={addToCart}
         />
       )}
-
       {currentScreen === "cart" && (
         <Cart cartItems={cart} onBack={goBack} onCheckout={handleCheckout} />
+      )}
+      {currentScreen === "orders" && <Orders onBack={goBack} />}{" "}
+      {toast && (
+        <div className="toast-notification">
+          <h4>{toast.title}</h4>
+          <p>{toast.message}</p>
+        </div>
       )}
     </div>
   );

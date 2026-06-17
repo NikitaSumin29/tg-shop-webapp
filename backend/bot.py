@@ -3,7 +3,7 @@ import logging
 
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import CommandStart
-from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from config import settings
 
 logging.basicConfig(level=logging.INFO)
@@ -13,18 +13,14 @@ bot = Bot(token=settings.BOT_TOKEN)
 dp = Dispatcher()
 
 # СЮДА ВСТАВИМ НОВУЮ ССЫЛКУ
-WEBAPP_URL = "https://a53e5ec44ae1f8.lhr.life"
+WEBAPP_URL = "https://24260a2ce84fc7.lhr.life"
 
 
 @dp.message(CommandStart())
 async def cmd_start(message: types.Message):
     markup = InlineKeyboardMarkup(
         inline_keyboard=[
-            [
-                InlineKeyboardButton(
-                    text="🛍 Открыть магазин", web_app=WebAppInfo(url=WEBAPP_URL)
-                )
-            ]
+            [InlineKeyboardButton(text="🛍 Открыть магазин", url=WEBAPP_URL)]
         ]
     )
 
