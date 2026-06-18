@@ -1,32 +1,29 @@
 from contextlib import asynccontextmanager
 from typing import List
 
+import jwt
 import models
 import schemas
+from aiogram import Bot
+from config import settings
 from database import Base, engine, get_db
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import select, text
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
+
+tg_bot = Bot(token=settings.BOT_TOKEN)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-
-        # --- ВРЕМЕННЫЙ СКРИПТ ОЧИСТКИ ---
-        # Удаляем все записи из таблиц заказов при каждом запуске
-        await conn.execute(text("DELETE FROM order_items;"))
-        await conn.execute(text("DELETE FROM orders;"))
-        # --------------------------------
-
     yield
 
 
 app = FastAPI(title="Telegram Shop API", lifespan=lifespan)
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -36,100 +33,177 @@ app.add_middleware(
 )
 
 
-# МЕТОД ДЛЯ ПОЛУЧЕНИЯ ВСЕХ ТОВАРОВ
+def format_price(price: float):
+    return f"{price:,.2f}".replace(",", " ")
+
+
+# --- ФУНКЦИЯ РАСШИФРОВКИ И ПРОВЕРКИ ТОКЕНА ---
+def verify_token(token: str) -> dict:
+    try:
+        return jwt.decode(token, settings.BOT_TOKEN, algorithms=["HS256"])
+    except Exception:
+        raise HTTPException(
+            status_code=401, detail="Ошибка безопасности: Неверный токен!"
+        )
+
+
+# --- 1. КАТАЛОГ ТОВАРОВ ---
 @app.get("/api/products", response_model=List[schemas.ProductResponse])
 async def get_products(db: AsyncSession = Depends(get_db)):
-    # Делаем SQL запрос: SELECT * FROM products WHERE is_active = True
     result = await db.execute(select(models.Product).where(models.Product.is_active))
-    products = result.scalars().all()
-    return products
+    return result.scalars().all()
 
 
-# 1. ОФОРМИТЬ ЗАКАЗ
-@app.post("/api/orders", response_model=schemas.OrderResponse)
-async def create_order(
-    order_data: schemas.OrderCreate, db: AsyncSession = Depends(get_db)
-):
-    # Ищем пользователя в БД или создаем нового (незаметная регистрация)
+# --- 2. ПОЛУЧЕНИЕ ДАННЫХ ЮЗЕРА (БАЛАНС + ЗАКАЗЫ) ---
+@app.get("/api/user_data")
+async def get_user_data(token: str, db: AsyncSession = Depends(get_db)):
+    # Проверяем токен!
+    payload = verify_token(token)
+    real_tg_id = payload["tg_id"]
+    real_username = payload.get("username")
+
     result = await db.execute(
-        select(models.User).where(models.User.tg_id == order_data.tg_id)
+        select(models.User).where(models.User.tg_id == real_tg_id)
     )
     user = result.scalar_one_or_none()
 
+    # Если юзер зашел впервые - регистрируем, если поменял ник - обновляем
     if not user:
-        user = models.User(tg_id=order_data.tg_id, username=order_data.username)
+        user = models.User(tg_id=real_tg_id, username=real_username)
         db.add(user)
         await db.commit()
         await db.refresh(user)
+    elif user.username != real_username:
+        user.username = real_username # type: ignore
+        await db.commit()
 
-    # Создаем сам заказ
+    # Достаем историю заказов
+    orders_res = await db.execute(
+        select(models.Order)
+        .options(
+            selectinload(models.Order.items).selectinload(models.OrderItem.product)
+        )
+        .where(models.Order.user_id == user.id)
+        .order_by(models.Order.created_at.desc())
+    )
+    return {"balance": user.balance, "orders": orders_res.scalars().all()}
+
+
+# --- 3. СОЗДАНИЕ ЗАКАЗА ---
+@app.post("/api/orders")
+async def create_order(
+    order_data: schemas.OrderCreate, db: AsyncSession = Depends(get_db)
+):
+    # Проверяем токен из JSON-тела!
+    payload = verify_token(order_data.token)  # type: ignore
+    real_tg_id = payload["tg_id"]
+
+    result = await db.execute(
+        select(models.User).where(models.User.tg_id == real_tg_id)
+    )
+    user = result.scalar_one()
+
+    # Считаем сумму
+    total_sum = 0.0
+    actual_items = []
+    for item in order_data.items:
+        prod_res = await db.execute(
+            select(models.Product).where(models.Product.id == item.product_id)
+        )
+        product = prod_res.scalar_one_or_none()
+        if product:
+            total_sum += float(product.price) * item.quantity  # type: ignore
+            actual_items.append({"product": product, "qty": item.quantity})
+
+    # ПРОВЕРКА БАЛАНСА
+    if float(user.balance) < total_sum:  # type: ignore
+        raise HTTPException(
+            status_code=400,
+            detail={"msg": "insufficient_funds", "balance": user.balance},
+        )
+
+    # Списываем деньги
+    user.balance = float(user.balance) - total_sum  # type: ignore
+
     new_order = models.Order(user_id=user.id, status="new")
     db.add(new_order)
     await db.commit()
     await db.refresh(new_order)
 
-    # Добавляем товары в заказ
-    for item in order_data.items:
-        # Достаем актуальную цену товара из БД
-        prod_res = await db.execute(
-            select(models.Product).where(models.Product.id == item.product_id)
-        )
-        product = prod_res.scalar_one_or_none()
-
-        if product:
-            order_item = models.OrderItem(
+    # Добавляем товары
+    for item in actual_items:
+        db.add(
+            models.OrderItem(
                 order_id=new_order.id,
-                product_id=product.id,
-                quantity=item.quantity,
-                price_at_purchase=product.price,  # Фиксируем цену для 3НФ!
+                product_id=item["product"].id,
+                quantity=item["qty"],
+                price_at_purchase=item["product"].price,
             )
-            db.add(order_item)
-
+        )
     await db.commit()
 
-    # Возвращаем созданный заказ
-    final_res = await db.execute(
-        select(models.Order)
-        .options(selectinload(models.Order.items))
-        .where(models.Order.id == new_order.id)
-    )
-    return final_res.scalar_one()
+    # Отправляем чек в Телеграм
+    try:
+        receipt_text = (
+            f"✅ <b>Заказ #{new_order.id} успешно оформлен!</b>\n\n"
+            f"💰 Сумма заказа: <b>{format_price(total_sum)} ₽</b>\n"
+            f"💳 Ваш текущий баланс: <b>{format_price(float(user.balance))} ₽</b>"  # type: ignore
+        )
+        await tg_bot.send_message(
+            chat_id=real_tg_id, text=receipt_text, parse_mode="HTML"
+        )
+    except Exception as e:
+        print(f"Ошибка отправки ТГ: {e}")
+
+    return {"message": "ok", "new_balance": user.balance, "order_id": new_order.id}
 
 
-# 2. ПОЛУЧИТЬ ИСТОРИЮ ЗАКАЗОВ (Для экрана "Мои заказы")
-@app.get("/api/orders/{tg_id}", response_model=List[schemas.OrderResponse])
-async def get_user_orders(tg_id: int, db: AsyncSession = Depends(get_db)):
-    # Ищем пользователя
-    user_res = await db.execute(select(models.User).where(models.User.tg_id == tg_id))
-    user = user_res.scalar_one_or_none()
-
-    if not user:
-        return []  # Если юзера нет, у него пустая история
-
-    # Достаем все его заказы вместе с товарами (сортируем от новых к старым)
-    orders_res = await db.execute(
-        select(models.Order)
-        .options(selectinload(models.Order.items))
-        .where(models.Order.user_id == user.id)
-        .order_by(models.Order.created_at.desc())
-    )
-    return orders_res.scalars().all()
-
-
-# 3. ОТМЕНИТЬ ЗАКАЗ (Твоя идея!)
+# --- 4. ОТМЕНА ЗАКАЗА И ВОЗВРАТ ДЕНЕГ ---
 @app.patch("/api/orders/{order_id}/cancel")
-async def cancel_order(order_id: int, db: AsyncSession = Depends(get_db)):
-    res = await db.execute(select(models.Order).where(models.Order.id == order_id))
+async def cancel_order(order_id: int, token: str, db: AsyncSession = Depends(get_db)):
+    verify_token(token)  # Проверяем, что запрос от реального юзера!
+
+    res = await db.execute(
+        select(models.Order)
+        .options(selectinload(models.Order.items))
+        .where(models.Order.id == order_id)
+    )
     order = res.scalar_one_or_none()
 
-    if not order:
-        raise HTTPException(status_code=404, detail="Заказ не найден")
+    if not order or order.status != "new":  # type: ignore
+        raise HTTPException(status_code=400, detail="error")
 
-    if order.status != "new":  # type: ignore
-        raise HTTPException(
-            status_code=400, detail="Можно отменить только новые заказы"
-        )
+    user_res = await db.execute(
+        select(models.User).where(models.User.id == order.user_id)
+    )
+    user = user_res.scalar_one()
 
+    # Возвращаем деньги
+    total = sum(float(i.price_at_purchase) * i.quantity for i in order.items)  # type: ignore
+    user.balance = float(user.balance) + total  # type: ignore
     order.status = "cancelled"  # type: ignore
     await db.commit()
-    return {"message": "Заказ успешно отменен"}
+
+    return {"message": "ok", "refunded": total, "new_balance": user.balance}
+
+
+# --- 5. ПОПОЛНИТЬ БАЛАНС (Для бота) ---
+@app.post("/api/users/{tg_id}/topup")
+async def topup_balance(
+    tg_id: int,
+    secret_token: str = Header(None),  # Ждем секретный пароль в заголовках
+    db: AsyncSession = Depends(get_db),
+):
+    # Защита от хакеров!
+    if secret_token != settings.BOT_TOKEN:
+        raise HTTPException(status_code=403, detail="Доступ запрещен!")
+
+    res = await db.execute(select(models.User).where(models.User.tg_id == tg_id))
+    user = res.scalar_one_or_none()
+    if not user:
+        user = models.User(tg_id=tg_id)
+        db.add(user)
+
+    user.balance = float(user.balance or 0.0) + 20000.0  # type: ignore
+    await db.commit()
+    return {"balance": user.balance}

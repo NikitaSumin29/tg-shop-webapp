@@ -2,16 +2,34 @@ import React from "react";
 import ProductImage from "./ProductImage";
 import { formatPrice } from "../utils/formatters";
 
-function Cart({ cartItems, onBack, onCheckout }) {
-  const totalPrice = cartItems.reduce((sum, item) => sum + item.price, 0);
+function Cart({
+  cartItems,
+  onBack,
+  onCheckout,
+  openProduct,
+  updateQuantity,
+  removeItem,
+  clearCart,
+}) {
+  const totalPrice = cartItems.reduce(
+    (sum, item) => sum + item.product.price * item.quantity,
+    0,
+  );
 
   return (
     <div className="cart-screen">
       <button className="back-button" onClick={onBack}>
-        ← Назад в каталог
+        ← Назад
       </button>
 
-      <h2>🛒 Ваша корзина</h2>
+      <div className="cart-header-row">
+        <h2>🛒 Ваша корзина</h2>
+        {cartItems.length > 0 && (
+          <button className="clear-cart-btn" onClick={clearCart}>
+            Очистить всё
+          </button>
+        )}
+      </div>
 
       {cartItems.length === 0 ? (
         <p className="empty-cart">Корзина пуста 😔</p>
@@ -20,14 +38,47 @@ function Cart({ cartItems, onBack, onCheckout }) {
           <div className="cart-list">
             {cartItems.map((item, index) => (
               <div key={index} className="cart-item">
-                <ProductImage
-                  src={item.image_url}
-                  alt={item.name}
-                  className="cart-item-img"
-                />
-                <div className="cart-item-info">
-                  <h4>{item.name}</h4>
-                  <span>{formatPrice(item.price)}</span>
+                {/* Клик по картинке или названию открывает товар */}
+                <div
+                  className="cart-item-main"
+                  onClick={() => openProduct(item.product)}
+                >
+                  <ProductImage
+                    src={item.product.image_url}
+                    alt={item.product.name}
+                    className="cart-item-img"
+                  />
+                  <div className="cart-item-info">
+                    <h4>{item.product.name}</h4>
+                    <span className="cart-item-price">
+                      {formatPrice(item.product.price)}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Панель управления количеством */}
+                <div className="cart-item-controls">
+                  <button
+                    className="mini-qty-btn"
+                    onClick={() => updateQuantity(item.product.id, -1)}
+                  >
+                    -
+                  </button>
+                  <span className="mini-qty-number">{item.quantity}</span>
+                  <button
+                    className="mini-qty-btn"
+                    onClick={() => updateQuantity(item.product.id, 1)}
+                  >
+                    +
+                  </button>
+
+                  <button
+                    className="remove-item-btn"
+                    onClick={() => removeItem(item.product.id)}
+                    title="Удалить"
+                  >
+                    🗑️
+                  </button>
                 </div>
               </div>
             ))}

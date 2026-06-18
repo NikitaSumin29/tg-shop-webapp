@@ -29,9 +29,7 @@ class OrderItemCreate(BaseModel):
 
 # 2. Что React пришлет при нажатии "Оформить заказ"
 class OrderCreate(BaseModel):
-    tg_id: int
-    first_name: str
-    username: Optional[str] = None
+    token: str
     items: list[OrderItemCreate]
 
 
@@ -40,6 +38,8 @@ class OrderItemResponse(BaseModel):
     product_id: int
     quantity: int
     price_at_purchase: float
+    # В ответ будет вкладываться полная информация о товаре
+    product: ProductResponse
 
     class Config:
         from_attributes = True

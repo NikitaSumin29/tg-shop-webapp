@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Orders from "./components/Orders";
 import ProductDetail from "./components/ProductDetail";
 import Cart from "./components/Cart";
@@ -6,58 +6,116 @@ import ProductImage from "./components/ProductImage";
 import { formatPrice } from "./utils/formatters";
 import "./App.css";
 
-const tg = window.Telegram.WebApp;
+const tg = window.Telegram?.WebApp;
+const API_URL = "http://127.0.0.1:8000"; // <--- ЕДИНЫЙ АДРЕС БЭКЕНДА
 
 function App() {
+  // 1. Читаем токен и имя из ссылки
+  const urlParams = new URLSearchParams(window.location.search);
+  const token = urlParams.get("token");
+  const name = urlParams.get("name");
+
+  // Состояния
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [cart, setCart] = useState([]);
-  const [activeOrdersCount, setActiveOrdersCount] = useState(0);
   const [currentScreen, setCurrentScreen] = useState("catalog");
   const [selectedProduct, setSelectedProduct] = useState(null);
-  const [toast, setToast] = useState(null); // НОВОЕ СОСТОЯНИЕ ДЛЯ ОКНА
+  const [toast, setToast] = useState(null);
+  const [searchQuery, setSearchQuery] = useState(""); // Состояние поиска
 
-  // Функция для показа уведомления на 3 секунды
+  // Глобальные состояния юзера
+  const [userBalance, setUserBalance] = useState(0);
+  const [globalOrders, setGlobalOrders] = useState([]);
+  const previousOrders = useRef([]);
+
+  // Объект юзера (хранит токен для запросов)
+  const user = {
+    token: token,
+    first_name: name ? decodeURIComponent(name) : "Гость",
+  };
+
   const showToast = (title, message) => {
     setToast({ title, message });
-    setTimeout(() => setToast(null), 3000);
+    setTimeout(() => setToast(null), 4000);
   };
 
-  const fetchOrdersCount = () => {
-    const user = tg.initDataUnsafe?.user || { id: 111111 };
-    fetch(`http://127.0.0.1:8000/api/orders/${user.id}`, { cache: "no-store" })
-      .then((res) => res.json())
-      .then((data) => {
-        // Считаем только те заказы, которые не отменены
-        const active = data.filter((o) => o.status === "new").length;
-        setActiveOrdersCount(active);
-      })
-      .catch((err) => console.error(err));
-  };
+  // Единый опрос сервера: Баланс и Заказы
+  const fetchUserData = async () => {
+    if (!user.token) return; // Не делаем запрос, если нет токена
 
-  useEffect(() => {
-    tg.ready();
-    fetch("http://127.0.0.1:8000/api/products")
-      .then((res) => res.json())
-      .then((data) => {
-        setProducts(data);
-        setLoading(false);
-      })
-      .catch((err) => {
-        console.error("Ошибка сети:", err);
-        setLoading(false);
+    try {
+      const res = await fetch(`${API_URL}/api/user_data?token=${user.token}`, {
+        cache: "no-store",
       });
-    fetchOrdersCount(); // Запрашиваем количество при входе
-  }, []);
+      if (res.ok) {
+        const data = await res.json();
+        setUserBalance(data.balance);
+        setGlobalOrders(data.orders);
+
+        // Проверка отмены из бота
+        if (previousOrders.current.length > 0) {
+          data.orders.forEach((newOrder) => {
+            const oldOrder = previousOrders.current.find(
+              (o) => o.id === newOrder.id,
+            );
+            if (
+              oldOrder &&
+              oldOrder.status === "new" &&
+              newOrder.status === "cancelled"
+            ) {
+              const total = newOrder.items.reduce(
+                (s, i) => s + i.price_at_purchase * i.quantity,
+                0,
+              );
+              showToast(
+                "Заказ отменен из бота!",
+                `Возврат ${formatPrice(total)}. Ваш баланс: ${formatPrice(data.balance)}`,
+              );
+            }
+          });
+        }
+        previousOrders.current = data.orders;
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   useEffect(() => {
-    if (currentScreen === "catalog") {
-      tg.BackButton.hide();
-    } else {
-      tg.BackButton.show();
-      tg.BackButton.onClick(goBack);
+    if (user.token) {
+      fetch(`${API_URL}/api/products`)
+        .then((res) => res.json())
+        .then((data) => {
+          setProducts(data);
+          setLoading(false);
+        })
+        .catch((err) => {
+          console.error("Ошибка сети:", err);
+          setLoading(false);
+        });
+
+      fetchUserData();
+      const interval = setInterval(fetchUserData, 3000);
+      return () => clearInterval(interval);
     }
-  }, [currentScreen]);
+  }, [user.token]);
+
+  // ЭКРАН БЛОКИРОВКИ: Если зашли просто из браузера без токена
+  if (!user.token) {
+    return (
+      <div className="access-denied-screen">
+        <h2>⚠️ Доступ ограничен</h2>
+        <p>
+          Для безопасного входа откройте магазин через нашего Telegram-бота.
+        </p>
+        {/* Замени юзернейм на свой реальный */}
+        <a href="https://t.me/sumin_test_shop_bot" className="tg-link-btn">
+          Перейти в бота
+        </a>
+      </div>
+    );
+  }
 
   const openProduct = (product) => {
     setSelectedProduct(product);
@@ -67,53 +125,112 @@ function App() {
   const goBack = () => {
     setCurrentScreen("catalog");
     setSelectedProduct(null);
-    fetchOrdersCount();
   };
 
-  const addToCart = (product) => {
-    setCart((prevCart) => [...prevCart, product]); // Лучшая практика работы с состоянием
+  const addToCart = (product, quantity = 1) => {
+    setCart((prev) => {
+      const exist = prev.find((i) => i.product.id === product.id);
+      if (exist)
+        return prev.map((i) =>
+          i.product.id === product.id
+            ? { ...i, quantity: i.quantity + quantity }
+            : i,
+        );
+      return [...prev, { product, quantity }];
+    });
     if (currentScreen === "product") goBack();
   };
 
+  const updateQuantity = (productId, amount) => {
+    setCart((prev) =>
+      prev.map((i) => {
+        if (i.product.id === productId) {
+          const nQ = i.quantity + amount;
+          return nQ > 0 ? { ...i, quantity: nQ } : i;
+        }
+        return i;
+      }),
+    );
+  };
+
+  const removeItem = (id) =>
+    setCart((prev) => prev.filter((i) => i.product.id !== id));
+
+  const clearCart = () => {
+    if (window.confirm("Очистить корзину?")) setCart([]);
+  };
+
   const handleCheckout = async () => {
-    const items = cart.map((item) => ({ product_id: item.id, quantity: 1 }));
-    const user = tg.initDataUnsafe?.user || {
-      id: 111111,
-      first_name: "Тестовый Покупатель",
-      username: "test_buyer",
-    };
-    const orderData = {
-      tg_id: user.id,
-      first_name: user.first_name,
-      username: user.username,
-      items: items,
-    };
+    const total = cart.reduce((s, i) => s + i.product.price * i.quantity, 0);
+
+    if (userBalance < total) {
+      showToast(
+        "Недостаточно средств!",
+        `Сумма: ${formatPrice(total)}. Ваш баланс: ${formatPrice(userBalance)}`,
+      );
+      return;
+    }
+
+    const items = cart.map((i) => ({
+      product_id: i.product.id,
+      quantity: i.quantity,
+    }));
 
     try {
-      const response = await fetch("http://127.0.0.1:8000/api/orders", {
+      const response = await fetch(`${API_URL}/api/orders`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(orderData),
+        body: JSON.stringify({
+          token: user.token, // Отправляем токен!
+          first_name: user.first_name,
+          items: items,
+        }),
       });
 
+      const resData = await response.json();
       if (response.ok) {
-        showToast("Успешно!", "Новый заказ добавлен."); // Наше белое окно
-        setCart([]); // Очищаем корзину
-        fetchOrdersCount();
-        goBack(); // Возвращаемся в каталог
+        showToast(
+          "Заказ оформлен!",
+          `Списано ${formatPrice(total)}. Остаток: ${formatPrice(resData.new_balance)}`,
+        );
+        setCart([]);
+        fetchUserData();
+        goBack();
       } else {
-        showToast("Ошибка", "Попробуйте позже.");
+        if (resData.detail?.msg === "insufficient_funds") {
+          showToast(
+            "Ошибка",
+            `Недостаточно средств. Баланс: ${formatPrice(resData.detail.balance)}`,
+          );
+        } else {
+          showToast("Ошибка", "Сбой при оформлении заказа.");
+        }
       }
     } catch (error) {
       showToast("Ошибка", "Нет связи с сервером.");
     }
   };
 
-  // Вычисляем сумму корзины один раз
-  const cartTotal = cart.reduce((sum, item) => sum + item.price, 0);
+  const activeOrdersCount = globalOrders.filter(
+    (o) => o.status === "new",
+  ).length;
+  const cartTotal = cart.reduce((s, i) => s + i.product.price * i.quantity, 0);
+  const cartItemsCount = cart.reduce((s, i) => s + i.quantity, 0);
+  const filteredProducts = products.filter((p) =>
+    p.name.toLowerCase().includes(searchQuery.toLowerCase()),
+  );
 
   return (
     <div className="app-container">
+      {/* Профиль с БАЛАНСОМ виден везде! */}
+      <div className="user-profile-corner">
+        <div className="user-avatar">{user.first_name.charAt(0)}</div>
+        <div className="user-info-col">
+          <span className="user-name">{user.first_name}</span>
+          <span className="user-balance">{formatPrice(userBalance)}</span>
+        </div>
+      </div>
+
       {currentScreen === "catalog" && (
         <>
           <header className="header">
@@ -124,26 +241,46 @@ function App() {
               style={{ cursor: "pointer" }}
             >
               <span>
-                🛒 В корзине: <b>{cart.length}</b> шт.
+                🛒 В корзине: <b>{cartItemsCount}</b> шт.
               </span>
-              {cart.length > 0 && (
+              {cartItemsCount > 0 && (
                 <span className="cart-total">({formatPrice(cartTotal)})</span>
               )}
             </div>
+
             <button
               className="orders-link-btn"
               onClick={() => setCurrentScreen("orders")}
             >
               📦 Мои заказы {activeOrdersCount > 0 ? activeOrdersCount : ""}
             </button>
+
+            <div className="search-bar">
+              <input
+                type="text"
+                placeholder="Поиск товаров..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+              {searchQuery && (
+                <button
+                  className="clear-search"
+                  onClick={() => setSearchQuery("")}
+                >
+                  ✖
+                </button>
+              )}
+            </div>
           </header>
 
           <main className="main-content">
             {loading ? (
               <p className="loading-text">Загрузка...</p>
+            ) : filteredProducts.length === 0 ? (
+              <p className="empty-cart">Товары не найдены</p>
             ) : (
               <div className="products-grid">
-                {products.map((product) => (
+                {filteredProducts.map((product) => (
                   <div
                     key={product.id}
                     className="product-card"
@@ -158,7 +295,6 @@ function App() {
                     <div className="product-info">
                       <h2 className="product-title">{product.name}</h2>
                       <div className="product-footer">
-                        {/* Используем форматер цены! */}
                         <span className="product-price">
                           {formatPrice(product.price)}
                         </span>
@@ -166,7 +302,7 @@ function App() {
                           className="add-button"
                           onClick={(e) => {
                             e.stopPropagation();
-                            addToCart(product);
+                            addToCart(product, 1);
                           }}
                         >
                           В корзину
@@ -180,17 +316,39 @@ function App() {
           </main>
         </>
       )}
-      {currentScreen === "product" && selectedProduct && (
+
+      {currentScreen === "product" && (
         <ProductDetail
           product={selectedProduct}
           onBack={goBack}
           onAddToCart={addToCart}
         />
       )}
+
       {currentScreen === "cart" && (
-        <Cart cartItems={cart} onBack={goBack} onCheckout={handleCheckout} />
+        <Cart
+          cartItems={cart}
+          onBack={goBack}
+          onCheckout={handleCheckout}
+          openProduct={openProduct}
+          updateQuantity={updateQuantity}
+          removeItem={removeItem}
+          clearCart={clearCart}
+        />
       )}
-      {currentScreen === "orders" && <Orders onBack={goBack} />}{" "}
+
+      {currentScreen === "orders" && (
+        <Orders
+          onBack={goBack}
+          openProduct={openProduct}
+          globalOrders={globalOrders}
+          fetchUserData={fetchUserData}
+          showToast={showToast}
+          user={user}
+          API_URL={API_URL}
+        />
+      )}
+
       {toast && (
         <div className="toast-notification">
           <h4>{toast.title}</h4>

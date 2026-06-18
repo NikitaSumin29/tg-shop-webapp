@@ -50,6 +50,7 @@ body {
   display: flex;
   flex-direction: column;
   transition: transform 0.2s ease;
+  cursor: pointer;
 }
 
 .product-card:hover {
@@ -433,4 +434,457 @@ body {
 .cancel-button:hover {
   background: #e74c3c;
   color: white;
+}
+
+/* Профиль пользователя */
+.user-profile-corner {
+  position: absolute;
+  top: 15px;
+  right: 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  color: #2c3e50;
+  font-size: 0.9rem;
+}
+
+.user-avatar {
+  width: 32px;
+  height: 32px;
+  background-color: #3498db;
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-weight: bold;
+}
+
+/* Поисковик */
+.search-bar {
+  margin-top: 15px;
+  position: relative;
+  display: flex;
+  justify-content: center;
+}
+
+.search-bar input {
+  width: 100%;
+  max-width: 400px;
+  padding: 12px 40px 12px 15px;
+  border-radius: 12px;
+  border: 1px solid #ddd;
+  font-size: 1rem;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.search-bar input:focus {
+  border-color: #3498db;
+}
+
+.clear-search {
+  position: absolute;
+  right: calc(50% - 190px); /* позиция крестика */
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: #999;
+  font-size: 1.2rem;
+  cursor: pointer;
+}
+
+.clear-search:hover {
+  color: #e74c3c;
+}
+
+/* Товары внутри заказа */
+.order-items-preview {
+  margin-top: 15px;
+  background: #fdfdfd;
+  border-radius: 10px;
+  padding: 10px;
+  border: 1px solid #eee;
+}
+
+.order-items-preview h4 {
+  margin: 0 0 10px 0;
+  font-size: 0.9rem;
+  color: #7f8c8d;
+}
+
+.order-item-row {
+  display: flex;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid #eee;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.order-item-row:hover {
+  background: #f5f5f5;
+  border-radius: 6px;
+}
+
+.order-item-row:last-child {
+  border-bottom: none;
+}
+
+.order-item-mini-img {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  border-radius: 6px;
+  background: white;
+  margin-right: 12px;
+  border: 1px solid #eee;
+}
+
+.order-item-mini-info {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+}
+
+.order-item-mini-info .name {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.order-item-mini-info .price {
+  font-size: 0.85rem;
+  color: #7f8c8d;
+}
+
+.arrow {
+  color: #bdc3c7;
+  font-size: 1.5rem;
+  padding-right: 10px;
+}
+
+/* Стили для выбора количества (+/-) */
+.quantity-selector {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 15px 0;
+  background: #f8f9fa;
+  border-radius: 12px;
+  padding: 5px;
+  width: fit-content;
+  border: 1px solid #eee;
+}
+
+.qty-btn {
+  background: white;
+  border: none;
+  width: 35px;
+  height: 35px;
+  border-radius: 8px;
+  font-size: 1.2rem;
+  font-weight: bold;
+  color: #2c3e50;
+  cursor: pointer;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+}
+
+.qty-btn:hover {
+  background: #eee;
+}
+
+.qty-number {
+  font-size: 1.1rem;
+  font-weight: bold;
+  padding: 0 20px;
+  color: #2c3e50;
+}
+
+/* Бейджик (x3) */
+.qty-badge {
+  background: #2c3e50;
+  color: white;
+  padding: 2px 6px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  margin-left: 5px;
+}
+
+/* Кнопка "Свернуть/Развернуть" в заказах */
+.expand-toggle {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #f8f9fa;
+  padding: 10px 15px;
+  border-radius: 8px;
+  margin-top: 15px;
+  cursor: pointer;
+  font-weight: 600;
+  color: #34495e;
+  border: 1px solid #eee;
+}
+
+.expand-toggle:hover {
+  background: #f1f2f6;
+}
+
+.expand-arrow {
+  font-size: 0.8rem;
+  color: #7f8c8d;
+}
+
+/* аккуратный стиль для количества товара */
+.item-qty-text {
+  color: #95a5a6;
+  font-size: 0.9rem;
+  font-weight: 500;
+  margin-left: 5px;
+}
+
+/* Красивое наведение на строку товара в корзине */
+.cart-item {
+  padding: 10px; /* Добавили отступы, чтобы фон красиво обтекал текст */
+  border-bottom: 1px solid #eee;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.cart-item:hover {
+  background: #f8f9fa;
+  border-radius: 8px;
+}
+
+.cart-item:last-child {
+  border-bottom: 1px solid transparent;
+}
+
+/* Красивое наведение на строку товара в истории заказов */
+.order-item-row {
+  padding: 10px;
+}
+.order-item-row:hover {
+  background: #f8f9fa;
+  border-radius: 8px;
+}
+
+/* =========================================
+   СТИЛИ ДЛЯ УПРАВЛЕНИЯ КОРЗИНОЙ
+========================================= */
+
+.cart-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.cart-header-row h2 {
+  margin-bottom: 0; /* Убираем старый отступ */
+}
+
+.clear-cart-btn {
+  background: none;
+  border: none;
+  color: #e74c3c;
+  cursor: pointer;
+  font-size: 0.95rem;
+  font-weight: bold;
+  padding: 5px 10px;
+  border-radius: 6px;
+  transition: background 0.2s;
+}
+
+.clear-cart-btn:hover {
+  background: #fdedec;
+}
+
+/* Перестраиваем строку товара в корзине */
+.cart-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 10px;
+  border-bottom: 1px solid #eee;
+  transition: background 0.2s ease;
+}
+
+.cart-item:hover {
+  background: #f8f9fa;
+  border-radius: 8px;
+}
+
+.cart-item-main {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  flex-grow: 1;
+}
+
+/* Кнопки +/- внутри корзины */
+.cart-item-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: white;
+  padding: 4px;
+  border-radius: 8px;
+  border: 1px solid #eee;
+}
+
+.mini-qty-btn {
+  background: #f0f0f0;
+  border: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  font-weight: bold;
+  font-size: 1.1rem;
+  cursor: pointer;
+  color: #2c3e50;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: background 0.2s;
+}
+
+.mini-qty-btn:hover {
+  background: #e0e0e0;
+}
+
+.mini-qty-number {
+  font-weight: bold;
+  font-size: 0.95rem;
+  min-width: 16px;
+  text-align: center;
+  color: #2c3e50;
+}
+
+.remove-item-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1.2rem;
+  margin-left: 5px;
+  opacity: 0.6;
+  transition:
+    opacity 0.2s,
+    transform 0.2s;
+}
+
+.remove-item-btn:hover {
+  opacity: 1;
+  transform: scale(1.1);
+}
+
+/* =========================================
+   ВКЛАДКИ НА СТРАНИЦЕ ЗАКАЗОВ
+========================================= */
+
+.orders-tabs {
+  display: flex;
+  background-color: #eef2f5;
+  padding: 4px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+}
+
+.tab-btn {
+  flex: 1;
+  padding: 10px;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: #7f8c8d;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.tab-btn:hover {
+  color: #2c3e50;
+}
+
+.tab-btn.active {
+  background-color: #ffffff;
+  color: #2c3e50;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.orders-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.orders-header-row h2 {
+  margin-bottom: 0;
+}
+
+.user-info-col {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.user-name {
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
+.user-balance {
+  font-size: 0.85rem;
+  color: #27ae60; /* Зеленый цвет денег */
+  font-weight: 800;
+}
+
+/* =========================================
+   ЭКРАН БЛОКИРОВКИ (ОГРАНИЧЕНИЕ ДОСТУПА)
+========================================= */
+
+.access-denied-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh; /* Занимает весь экран */
+  text-align: center;
+  padding: 30px;
+  background-color: #f8f9fa;
+}
+
+.access-denied-screen h2 {
+  color: #e74c3c; /* Красный цвет предупреждения */
+  font-size: 2rem;
+  margin-bottom: 15px;
+}
+
+.access-denied-screen p {
+  color: #34495e;
+  font-size: 1.1rem;
+  line-height: 1.5;
+  margin-bottom: 30px;
+  max-width: 400px;
+}
+
+.tg-link-btn {
+  background-color: #2aabee; /* Фирменный цвет Telegram */
+  color: white;
+  padding: 14px 28px;
+  border-radius: 12px;
+  text-decoration: none;
+  font-weight: bold;
+  font-size: 1.1rem;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 15px rgba(42, 171, 238, 0.3); /* Красивое свечение */
+}
+
+.tg-link-btn:hover {
+  background-color: #2298d6;
+  transform: translateY(-2px); /* Кнопка слегка приподнимается при наведении */
 }

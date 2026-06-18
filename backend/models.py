@@ -20,6 +20,7 @@ class User(Base):
     id = Column(Integer, primary_key=True, index=True)
     tg_id = Column(BigInteger, unique=True, index=True)  # ID пользователя в Telegram
     username = Column(String, nullable=True)
+    balance = Column(Float, default=0.0)
 
 
 class Product(Base):
@@ -60,3 +61,5 @@ class OrderItem(Base):
     price_at_purchase = Column(Float)
 
     order = relationship("Order", back_populates="items")
+    # Связываем позицию в заказе с конкретным товаром
+    product = relationship("Product")
