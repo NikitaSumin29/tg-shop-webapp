@@ -12,3 +12,4 @@ dist/
 # VS Code
 .vscode/
 repomix-output.xml
+ngrok.exe

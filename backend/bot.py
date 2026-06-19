@@ -20,8 +20,6 @@ logging.basicConfig(level=logging.INFO)
 bot = Bot(token=settings.BOT_TOKEN)
 dp = Dispatcher()
 
-# ССЫЛКА САЙТА МАГАЗИНА
-WEBAPP_URL = "https://3c43c19a351646.lhr.life"
 BACKEND_URL = "http://127.0.0.1:8000"
 
 
@@ -33,7 +31,7 @@ def get_token(user: types.User):
 
 def get_store_url(user: types.User):
     safe_name = urllib.parse.quote(user.first_name)
-    return f"{WEBAPP_URL}?token={get_token(user)}&name={safe_name}"
+    return f"{settings.WEBAPP_URL}?token={get_token(user)}&name={safe_name}"
 
 
 def format_price(price: float):
@@ -99,8 +97,12 @@ async def show_balance(message: types.Message):
             data = await resp.json()
             balance = data.get("balance", 0.0)
 
+    # Форматируем сумму из настроек (например: 100 000)
+    topup_str = f"{int(settings.TOPUP_AMOUNT):,}".replace(",", " ")
+
     builder = InlineKeyboardBuilder()
-    builder.button(text="💳 Пополнить на 20 000 ₽", callback_data="topup")
+    builder.button(text=f"💳 Пополнить на {topup_str} ₽", callback_data="topup")
+
     await message.answer(
         f"💳 Ваш текущий баланс: <b>{format_price(balance)} ₽</b>",
         reply_markup=builder.as_markup(),
@@ -120,15 +122,19 @@ async def process_topup(callback: types.CallbackQuery):
             data = await resp.json()
             new_balance = data.get("balance", 0.0)
 
+    # Форматируем сумму из настроек (например: 100 000)
+    topup_str = f"{int(settings.TOPUP_AMOUNT):,}".replace(",", " ")
+
     if isinstance(callback.message, types.Message):
         builder = InlineKeyboardBuilder()
-        builder.button(text="💳 Пополнить на 20 000 ₽", callback_data="topup")
+        builder.button(text=f"💳 Пополнить на {topup_str} ₽", callback_data="topup")
+
         await callback.message.edit_text(
             f"💳 Ваш текущий баланс: <b>{format_price(new_balance)} ₽</b>\n\n<i>✅ Баланс успешно пополнен!</i>",
             reply_markup=builder.as_markup(),
             parse_mode="HTML",
         )
-    await callback.answer("Баланс пополнен на 20 000 ₽!", show_alert=True)
+    await callback.answer(f"Баланс пополнен на {topup_str} ₽!", show_alert=True)
 
 
 # ЗАКАЗЫ
@@ -154,9 +160,17 @@ async def show_orders(message: types.Message):
         total = sum(
             item["price_at_purchase"] * item["quantity"] for item in order["items"]
         )
+
+        # Меняем формат YYYY-MM-DD на DD.MM.YYYY
+        raw_date = order["created_at"][:10]
+        y, m, d = raw_date.split("-")
+        formatted_date = f"{d}.{m}.{y}"
+
         text = (
-            f"📦 <b>Заказ #{order['id']}</b>\n📅 Дата: {order['created_at'][:10]}\n"
-            f"💰 Сумма: <b>{format_price(total)} ₽</b>\n🟢 Статус: Новый"
+            f"📦 <b>Заказ #{order['id']}</b>\n"
+            f"📅 Дата: {formatted_date}\n"
+            f"💰 Сумма: <b>{format_price(total)} ₽</b>\n"
+            f"🟢 Статус: Новый"
         )
         builder = InlineKeyboardBuilder()
         builder.button(text="👁 Состав заказа", callback_data=f"view_{order['id']}")

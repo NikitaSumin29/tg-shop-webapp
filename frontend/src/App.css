@@ -888,3 +888,87 @@ body {
   background-color: #2298d6;
   transform: translateY(-2px); /* Кнопка слегка приподнимается при наведении */
 }
+
+/* =========================================
+   НОВЫЕ ЭЛЕМЕНТЫ И МОБИЛЬНАЯ АДАПТАЦИЯ
+========================================= */
+
+/* Кнопка "Вернуться в чат с ботом" */
+.back-to-bot-link {
+  display: inline-block;
+  background-color: #f1f2f6;
+  color: #2c3e50;
+  padding: 8px 16px;
+  border-radius: 20px;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.85rem;
+  margin-bottom: 15px;
+  border: 1px solid #dfe4ea;
+  transition: background 0.2s;
+}
+
+.back-to-bot-link:hover {
+  background-color: #dfe4ea;
+}
+
+/* Фикс профиля: теперь он не будет наезжать на заголовок на телефонах */
+.user-profile-corner {
+  position: static; /* Отключаем абсолютное позиционирование */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+/* === МЕДИА-ЗАПРОСЫ ДЛЯ ТЕЛЕФОНОВ (Экраны меньше 600px) === */
+@media (max-width: 600px) {
+  .app-container {
+    padding: 10px; /* Уменьшаем отступы по бокам */
+  }
+
+  /* Сетка товаров: делаем 2 столбца на мобильных */
+  .products-grid {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 10px;
+  }
+
+  .product-image {
+    height: 150px; /* Уменьшаем картинки, чтобы влезало больше на экран */
+    padding: 5px;
+  }
+
+  .product-title {
+    font-size: 0.95rem; /* Уменьшаем шрифты */
+  }
+
+  .product-price {
+    font-size: 0.95rem;
+  }
+
+  .add-button {
+    padding: 6px 10px;
+    font-size: 0.8rem;
+  }
+
+  .header h1 {
+    font-size: 1.6rem;
+  }
+
+  /* Поисковик: крестик очистки съезжал на телефонах, чиним */
+  .clear-search {
+    right: 15px;
+  }
+
+  /* Корзина: адаптируем кнопки управления (чтобы не было тесно) */
+  .cart-item {
+    flex-wrap: wrap; /* Позволяем элементам переноситься на новую строку */
+  }
+
+  .cart-item-controls {
+    margin-top: 10px;
+    width: 100%;
+    justify-content: flex-end; /* Кнопки +/- будут справа */
+  }
+}

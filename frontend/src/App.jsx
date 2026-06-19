@@ -8,6 +8,7 @@ import "./App.css";
 
 const tg = window.Telegram?.WebApp;
 const API_URL = "http://127.0.0.1:8000"; // <--- ЕДИНЫЙ АДРЕС БЭКЕНДА
+const BOT_URL = "https://t.me/sumin_test_shop_bot"; // <--- ЕДИНАЯ ССЫЛКА НА БОТА
 
 function App() {
   // 1. Читаем токен и имя из ссылки
@@ -109,8 +110,7 @@ function App() {
         <p>
           Для безопасного входа откройте магазин через нашего Telegram-бота.
         </p>
-        {/* Замени юзернейм на свой реальный */}
-        <a href="https://t.me/sumin_test_shop_bot" className="tg-link-btn">
+        <a href={BOT_URL} className="tg-link-btn">
           Перейти в бота
         </a>
       </div>
@@ -234,6 +234,14 @@ function App() {
       {currentScreen === "catalog" && (
         <>
           <header className="header">
+            <a
+              href={BOT_URL}
+              className="back-to-bot-link"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              🤖 Вернуться в чат с ботом
+            </a>
             <h1>🛍️ TG Mini Shop</h1>
             <div
               className="cart-summary"

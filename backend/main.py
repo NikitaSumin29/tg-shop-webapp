@@ -1,3 +1,5 @@
+import json
+import os
 from contextlib import asynccontextmanager
 from typing import List
 
@@ -6,7 +8,7 @@ import models
 import schemas
 from aiogram import Bot
 from config import settings
-from database import Base, engine, get_db
+from database import AsyncSessionLocal, Base, engine, get_db
 from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import select
@@ -18,8 +20,37 @@ tg_bot = Bot(token=settings.BOT_TOKEN)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # 1. Создаем таблицы, если их нет
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+
+    # 2. АВТОЗАПОЛНЕНИЕ ТОВАРОВ ИЗ JSON (Database Seeding)
+    async with AsyncSessionLocal() as session:
+        file_path = "products.json"
+        # Проверяем, существует ли файл
+        if os.path.exists(file_path):
+            with open(file_path, "r", encoding="utf-8") as f:
+                products_data = json.load(f)
+
+            for p_data in products_data:
+                # Проверяем, есть ли уже товар с таким именем в базе
+                result = await session.execute(
+                    select(models.Product).where(models.Product.name == p_data["name"])
+                )
+                existing_product = result.scalar_one_or_none()
+
+                # Если товара нет - добавляем его!
+                if not existing_product:
+                    new_product = models.Product(
+                        name=p_data["name"],
+                        description=p_data["description"],
+                        price=p_data["price"],
+                        image_url=p_data.get("image_url", "/no-image.svg"),
+                    )
+                    session.add(new_product)
+            # Сохраняем все новые товары в БД
+            await session.commit()
+
     yield
 
 
@@ -74,7 +105,7 @@ async def get_user_data(token: str, db: AsyncSession = Depends(get_db)):
         await db.commit()
         await db.refresh(user)
     elif user.username != real_username:
-        user.username = real_username # type: ignore
+        user.username = real_username  # type: ignore
         await db.commit()
 
     # Достаем историю заказов
@@ -191,10 +222,9 @@ async def cancel_order(order_id: int, token: str, db: AsyncSession = Depends(get
 @app.post("/api/users/{tg_id}/topup")
 async def topup_balance(
     tg_id: int,
-    secret_token: str = Header(None),  # Ждем секретный пароль в заголовках
+    secret_token: str = Header(None),
     db: AsyncSession = Depends(get_db),
 ):
-    # Защита от хакеров!
     if secret_token != settings.BOT_TOKEN:
         raise HTTPException(status_code=403, detail="Доступ запрещен!")
 
@@ -204,6 +234,7 @@ async def topup_balance(
         user = models.User(tg_id=tg_id)
         db.add(user)
 
-    user.balance = float(user.balance or 0.0) + 20000.0  # type: ignore
+    # Используем переменную из настроек!
+    user.balance = float(user.balance or 0.0) + settings.TOPUP_AMOUNT  # type: ignore
     await db.commit()
     return {"balance": user.balance}
