@@ -9,9 +9,9 @@
 
 ## 🎥 Демонстрация работы
 
-[![Демо магазина](./assets/preview.jpg)](https://vimeo.com/1203063732)
+[![Демо магазина](./assets/preview.jpg)](https://vimeo.com/1203078419?fl=ip&fe=ec)
 
-[![Смотреть демо](https://img.shields.io/badge/Смотреть_Демо_Видео-Vimeo-1AB7EA?style=for-the-badge&logo=vimeo&logoColor=white)](https://vimeo.com/1203063732)
+[![Смотреть демо](https://img.shields.io/badge/Смотреть_Демо_Видео-Vimeo-1AB7EA?style=for-the-badge&logo=vimeo&logoColor=white)](https://vimeo.com/1203078419?fl=ip&fe=ec)
 
 ## ✨ Ключевые особенности архитектуры
 
