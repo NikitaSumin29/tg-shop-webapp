@@ -11,7 +11,7 @@
 
 [![Демо магазина](./assets/preview.jpg)](https://disk.yandex.ru/i/zgEWbManDjBGCA)
 
-_[ 📥 Кликните по картинке, чтобы посмотреть видео работы проекта на Яндекс.Диске ](https://disk.yandex.ru/i/zgEWbManDjBGCA)_
+[![Смотреть демо](https://img.shields.io/badge/Смотреть_Демо_Видео-Vimeo-1AB7EA?style=for-the-badge&logo=vimeo&logoColor=white)](https://vimeo.com/1203063732)
 
 ## ✨ Ключевые особенности архитектуры
 
