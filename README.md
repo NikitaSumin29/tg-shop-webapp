@@ -9,7 +9,9 @@
 
 ## 🎥 Демонстрация работы
 
-<video src="./assets/Demo.mp4" width="100%" controls autoplay loop muted></video>
+[![Демо магазина](./assets/preview.jpg)](https://disk.yandex.ru/i/zgEWbManDjBGCA)
+
+_[ 📥 Кликните по картинке, чтобы посмотреть видео работы проекта на Яндекс.Диске ](https://disk.yandex.ru/i/zgEWbManDjBGCA)_
 
 ## ✨ Ключевые особенности архитектуры
 
