@@ -9,7 +9,7 @@
 
 ## 🎥 Демонстрация работы
 
-[![Демо магазина](./assets/preview.jpg)](https://disk.yandex.ru/i/zgEWbManDjBGCA)
+[![Демо магазина](./assets/preview.jpg)](https://vimeo.com/1203063732)
 
 [![Смотреть демо](https://img.shields.io/badge/Смотреть_Демо_Видео-Vimeo-1AB7EA?style=for-the-badge&logo=vimeo&logoColor=white)](https://vimeo.com/1203063732)
 
