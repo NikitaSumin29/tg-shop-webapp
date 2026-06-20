@@ -7,7 +7,7 @@ import { formatPrice } from "./utils/formatters";
 import "./App.css";
 
 const tg = window.Telegram?.WebApp;
-const API_URL = "http://127.0.0.1:8000"; // <--- ЕДИНЫЙ АДРЕС БЭКЕНДА
+const API_URL = ""; // <--- ЕДИНЫЙ АДРЕС БЭКЕНДА
 const BOT_URL = "https://t.me/sumin_test_shop_bot"; // <--- ЕДИНАЯ ССЫЛКА НА БОТА
 
 function App() {
@@ -242,7 +242,7 @@ function App() {
             >
               🤖 Вернуться в чат с ботом
             </a>
-            <h1>🛍️ TG Mini Shop</h1>
+            <h1>🛍️ E-commerce Store</h1>
             <div
               className="cart-summary"
               onClick={() => setCurrentScreen("cart")}
