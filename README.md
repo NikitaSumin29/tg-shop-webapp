@@ -40,7 +40,7 @@
 ### 1. Клонирование репозитория
 
 ```bash
-git clone https://github.com/ВАШ_НИК/tg-shop-webapp.git
+git clone https://github.com/NikitaSumin29/tg-shop-webapp.git
 cd tg-shop-webapp
 ```
 
